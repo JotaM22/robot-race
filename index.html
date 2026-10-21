@@ -23,7 +23,7 @@ $('#assemble').onclick=()=>{if(anim)return;anim=1;$('#assemble').disabled=true;$
 $('#restart').onclick=()=>location.reload();
 document.querySelectorAll('[data-key]').forEach(b=>{let k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys[k]=true});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false))});
 addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();keys[{ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key]||e.key]=true;if(e.key===' ')grab()});addEventListener('keyup',e=>keys[{ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key]||e.key]=false);
-function distance(a,b){return Math.hypot(a.x-b.x,a.z-b.z)}function grab(){if(mode!=='race'||carrying)return;if(distance(robot,object)<2.7){carrying=true;$('#message').textContent='¡Objeto recogido! Ahora llega a la meta'}else $('#message').textContent='Acércate al cubo amarillo para recogerlo'}function drop(){if(!carrying)return;if(robot.z>28&&Math.abs(robot.x)<4){mode='win';$('#message').textContent='🏆 ¡MISIÓN COMPLETADA! ¡Ganaste Robot Race!';$('#phase').textContent='¡VICTORIA!';$('#controls').style.display='none'}else{$('#message').textContent='Lleva el objeto a la zona verde antes de soltarlo';}}$('#grab').onclick=grab;$('#drop').onclick=drop;
+function distance(a,b){return Math.hypot(a.x-b.x,a.z-b.z)}function grab(){if(mode!=='race'||carrying)return;if(distance(robot,object)<3.5){carrying=true;$('#message').textContent='¡Objeto recogido! Ahora llega a la meta'}else $('#message').textContent='Acércate al cubo amarillo para recogerlo'}function drop(){if(!carrying)return;if(robot.z>28&&Math.abs(robot.x)<4){mode='win';$('#message').textContent='🏆 ¡MISIÓN COMPLETADA! ¡Ganaste Robot Race!';$('#phase').textContent='¡VICTORIA!';$('#controls').style.display='none'}else{$('#message').textContent='Lleva el objeto a la zona verde antes de soltarlo';}}$('#grab').onclick=grab;$('#drop').onclick=drop;
 function poly(points,fill,stroke){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke()}}
 function rr(x,y,w,h,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill()}
 function render(t){let dt=Math.min((t-last)/1000||0,.05);last=t;ctx.clearRect(0,0,W,H);let horizon=H*.42;ctx.fillStyle='#0a1b2e';ctx.fillRect(0,0,W,H);ctx.fillStyle='#102e3b';ctx.fillRect(0,horizon,W,H-horizon);let cx=W/2,cy=H*.48;
@@ -34,10 +34,14 @@ function project(x,z){
  const dx=x-robot.x,dz=z-robot.z;
  const side=dx*ca-dz*sa,forward=dx*sa+dz*ca;
  const depth=forward+7;
- if(depth<=.3)return null;
- const focal=Math.min(W*1.05,H*.95),groundY=H*.94;
- const scale=focal/(depth+5);
- return [cx+side*scale,groundY-3.3*scale,scale/45];
+ if(depth<=0.25)return null;
+ // Cámara elevada detrás del robot, mirando al horizonte.
+ // El suelo se proyecta SIEMPRE por debajo del horizonte.
+ const horizon=H*.43;
+ const focal=Math.min(W*1.35,H*.9);
+ const scale=focal/(depth+7);
+ const groundY=horizon+3.3*scale;
+ return [cx+side*scale,groundY,scale/45];
 }
 function line(a,b,color,width=1){if(!a||!b)return;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke()}
 function quad(x1,z1,x2,z2,color){const p=[project(x1,z1),project(x2,z1),project(x2,z2),project(x1,z2)];if(p.every(Boolean))poly(p,color)}
@@ -55,7 +59,7 @@ for(let z=Math.floor((robot.z-8)/3)*3;z<robot.z+60;z+=3){for(let x of [-7,7]){co
 const goal=project(0,30);
 if(goal&&goal[1]>0&&goal[1]<H){const a=project(-5,30),b=project(5,30);line(a,b,'#12edaa',Math.max(5,18*goal[2]));ctx.fillStyle='#dcfff6';ctx.font='bold 16px system-ui';ctx.fillText('META',goal[0]-22,goal[1]-17)}
 if(!carrying){const o=project(object.x,object.z);if(o&&o[1]>0&&o[1]<H){const sz=Math.max(7,45*o[2]);rr(o[0]-sz/2,o[1]-sz,sz,sz,3,'#ffc447')}}
-ctx.save();ctx.translate(cx,H*.77);ctx.scale(Math.min(W/420,1.2),Math.min(W/420,1.2));drawRobot(0,0,1);if(carrying){rr(-12,-115,24,24,3,'#ffc447')}ctx.restore();if(mode==='win'){ctx.fillStyle='#0a1b2ecc';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 42px system-ui';ctx.fillText('🏆 ¡VICTORIA!',cx,H*.45);ctx.font='18px system-ui';ctx.fillText('Completaste la misión',cx,H*.51);ctx.textAlign='left'}}
+ctx.save();ctx.translate(cx,H*.78);ctx.scale(Math.min(W/420,1.2),Math.min(W/420,1.2));drawRobot(0,0,1);if(carrying){rr(-12,-115,24,24,3,'#ffc447')}ctx.restore();if(mode==='win'){ctx.fillStyle='#0a1b2ecc';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 42px system-ui';ctx.fillText('🏆 ¡VICTORIA!',cx,H*.45);ctx.font='18px system-ui';ctx.fillText('Completaste la misión',cx,H*.51);ctx.textAlign='left'}}
 requestAnimationFrame(render)}
 function drawRobot(x,y,s){ctx.save();ctx.translate(x,y);ctx.scale(s,s);poly([[-105,30],[-75,-15],[70,-15],[105,30],[65,77],[-65,77]],'#5f879b','#a4cad8');for(let a of [-1,1]){rr(a*77-18,12,36,65,13,'#17212d');rr(a*77-13,21,26,45,10,'#293c4d')}poly([[-75,-22],[-45,-55],[48,-55],[76,-22],[54,32],[-53,32]],'#198fa0','#6ed7dc');rr(-32,-42,65,39,5,'#156580');ctx.fillStyle='#e1f9ff';ctx.font='bold 12px system-ui';ctx.fillText('ARDUINO',-25,-18);rr(30,5,40,27,4,'#1a7159');rr(39,8,20,20,2,'#26323b');ctx.strokeStyle='#b5d7e8';ctx.lineWidth=15;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(0,-34);ctx.lineTo(-15,-82);ctx.lineTo(22,-117);ctx.stroke();ctx.strokeStyle='#e8a846';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(0,-34);ctx.lineTo(-15,-82);ctx.lineTo(22,-117);ctx.stroke();for(let [a,b] of [[-15,-82],[22,-117]]){ctx.beginPath();ctx.arc(a,b,11,0,Math.PI*2);ctx.fillStyle='#d6e8ef';ctx.fill();ctx.beginPath();ctx.arc(a,b,5,0,Math.PI*2);ctx.fillStyle='#4b7891';ctx.fill()}ctx.strokeStyle='#d6e8ef';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(22,-117);ctx.lineTo(10,-135);ctx.moveTo(22,-117);ctx.lineTo(36,-135);ctx.stroke();ctx.restore()}
 requestAnimationFrame(render);

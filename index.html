@@ -65,8 +65,24 @@ const track=box(scene,12,.06,72,M.road,0,-.025,27);
 for(let z=-3;z<64;z+=4){box(scene,.13,.025,2,M.stripe,0,.023,z);for(const x of [-6.05,6.05]){box(scene,.12,.025,3.7,M.white,x,.025,z)}}
 for(let z=0;z<64;z+=4)for(const x of [-7.5,7.5]){const a=cyl(scene,.25,.25,.12,mat(z%8?'#558a65':'#6e9e75'),x,.05,z);a.castShadow=false}
 const goal=box(scene,11.7,.035,1,M.green,0,.04,31);
-const cube=new THREE.Group();scene.add(cube);box(cube,.95,.95,.95,M.yellow,0,.52,0);cube.position.set(0,0,13);
-function panel(){if(step===5){mode='race';$('#panel').style.display='none';$('#controls').style.display='flex';$('#phase').textContent='FASE 2 · CARRERA 3D';$('#message').textContent='Recoge el cubo amarillo y llévalo a la meta';$('#orbitHint').style.display='none';$('#progress').style.display='none';all.forEach(g=>g.visible=true);return}
+// Cabeza 3D del robot: carcasa, ojos, boca, orejas y antena.
+const head=new THREE.Group();scene.add(head);
+const shell=mat('#c8d9e5',.48,.32),face=mat('#18374c',.25,.36),eye=mat('#27e8d0',.12,.25);
+box(head,.9,.78,.7,shell,0,.5,0);
+box(head,.72,.55,.055,face,0,.54,.375);
+box(head,.16,.16,.045,eye,-.19,.64,.411);
+box(head,.16,.16,.045,eye,.19,.64,.411);
+box(head,.34,.055,.048,eye,0,.39,.414);
+box(head,.16,.26,.26,M.steel,-.53,.54,0);
+box(head,.16,.26,.26,M.steel,.53,.54,0);
+cyl(head,.045,.045,.24,M.steel,0,1.01,0);
+sphere(head,.11,M.red,0,1.17,0);
+head.position.set(0,0,13);
+const headHome=new THREE.Vector3(0,.47,0);
+let pickupTime=0, pickupActive=false;
+const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
+const lerp=(a,b,t)=>a+(b-a)*t;
+function panel(){if(step===5){mode='race';$('#panel').style.display='none';$('#controls').style.display='flex';$('#phase').textContent='FASE 2 · CARRERA 3D';$('#message').textContent='Recoge la cabeza del robot 🤖 y llévala a la meta';$('#orbitHint').style.display='none';$('#progress').style.display='none';all.forEach(g=>g.visible=true);return}
 const p=descriptions[step];$('#heading').textContent=p[0];$('#desc').textContent=p[1];$('#counter').textContent='Componente '+(step+1)+' de 5';$('#progress').textContent='Ensamblado: '+step+'/5';$('#checks').innerHTML=descriptions.map((_,i)=>'<div class="check '+(i<step?'done':'')+'"></div>').join('');
 all.forEach((g,i)=>{g.visible=i<=step});}
 panel();
@@ -75,16 +91,27 @@ $('#restart').onclick=()=>location.reload();
 document.querySelectorAll('[data-key]').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys[k]=true;b.classList.add('pressed')});for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>{keys[k]=false;b.classList.remove('pressed')});b.addEventListener('contextmenu',e=>e.preventDefault())});
 addEventListener('keydown',e=>{const k={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key];if(k){e.preventDefault();keys[k]=true}if(e.code==='Space'){e.preventDefault();grab()}});
 addEventListener('keyup',e=>{const k={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key];if(k)keys[k]=false});addEventListener('blur',()=>keys={});
-function grab(){if(mode!=='race'||carrying)return;const d=Math.hypot(car.x-cube.position.x,car.z-cube.position.z);if(d<2.8){carrying=true;cube.visible=false;$('#message').textContent='¡Caja recogida! Avanza hasta la línea verde';}else $('#message').textContent='Acércate más al cubo para recogerlo';}
-function drop(){if(!carrying)return;if(car.z>28&&Math.abs(car.x)<5){mode='win';$('#controls').style.display='none';$('#phase').textContent='¡VICTORIA!';$('#message').textContent='🏆 ¡Misión completada! Robot Race 3D';cube.visible=true;cube.position.set(car.x,0,car.z+1.4)}else $('#message').textContent='Debes llegar a la línea verde antes de soltar la caja';}
+function grab(){if(mode!=='race'||carrying||pickupActive)return;const d=Math.hypot(car.x-head.position.x,car.z-head.position.z);if(d<3.0){pickupActive=true;pickupTime=0;keys={};$('#grab').disabled=true;$('#message').textContent='El brazo se flexiona para recoger la cabeza 🤖';}else $('#message').textContent='Acércate a la cabeza del robot para recogerla';}
+function drop(){if(!carrying||pickupActive)return;if(car.z>28&&Math.abs(car.x)<5){mode='win';carrying=false;head.attach(scene);head.position.set(car.x,0,car.z+1.6);head.rotation.set(0,0,0);$('#controls').style.display='none';$('#phase').textContent='¡VICTORIA!';$('#message').textContent='🏆 ¡Misión completada! Entregaste la cabeza del robot 🤖';}else $('#message').textContent='Debes llegar a la línea verde antes de soltar la cabeza';}
 $('#grab').onclick=grab;$('#drop').onclick=drop;
 let dragX=null;canvas.addEventListener('pointerdown',e=>{if(mode==='build')dragX=e.clientX});canvas.addEventListener('pointermove',e=>{if(dragX!==null){orbit+=(e.clientX-dragX)*.008;dragX=e.clientX}});for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,()=>dragX=null);
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();
 const clock=new THREE.Clock();const look=new THREE.Vector3(),desired=new THREE.Vector3();
 function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.045);elapsed+=dt;
-if(mode==='race'){if(keys.left)car.a+=1.7*dt;if(keys.right)car.a-=1.7*dt;const v=((keys.up?1:0)-(keys.down?1:0))*5.3*dt;const nx=car.x+Math.sin(car.a)*v,nz=car.z+Math.cos(car.a)*v;if(Math.abs(nx)<5.2&&nz>-2&&nz<34){car.x=nx;car.z=nz}if(v!==0)for(const w of wheels)w.rotation.x+=v/.46;shoulder.rotation.z=.15*Math.sin(elapsed*.9);elbow.rotation.z=-.28+.15*Math.sin(elapsed*.8)}
-if(mode==='build'){robot.position.set(0,0,0);robot.rotation.y=orbit+elapsed*.12;camera.position.lerp(new THREE.Vector3(6,5.1,8),.06);look.set(0,1.35,0);camera.lookAt(look);track.visible=false;ground.visible=false;goal.visible=false;cube.visible=false}
-else{track.visible=true;ground.visible=true;goal.visible=true;if(!carrying&&mode==='race')cube.visible=true;robot.position.set(car.x,0,car.z);robot.rotation.y=car.a;desired.set(car.x-6*Math.sin(car.a),4.4,car.z-7.6*Math.cos(car.a));camera.position.lerp(desired,Math.min(1,dt*5));look.set(car.x+3*Math.sin(car.a),1.1,car.z+4*Math.cos(car.a));camera.lookAt(look);if(carrying){jawL.position.x=-.14;jawR.position.x=.14}else{jawL.position.x=-.24;jawR.position.x=.24}}
+if(mode==='race'&&!pickupActive){if(keys.left)car.a+=1.7*dt;if(keys.right)car.a-=1.7*dt;const v=((keys.up?1:0)-(keys.down?1:0))*5.3*dt;const nx=car.x+Math.sin(car.a)*v,nz=car.z+Math.cos(car.a)*v;if(Math.abs(nx)<5.2&&nz>-2&&nz<34){car.x=nx;car.z=nz}if(v!==0)for(const w of wheels)w.rotation.x+=v/.46;}
+// Posición normal: brazo flexionado hacia el frente del vehículo.
+let shoulderAngle=.72, elbowAngle=-1.12;
+if(pickupActive){
+ pickupTime+=dt;
+ if(pickupTime<1.1){const t=smooth(pickupTime/1.1);shoulderAngle=lerp(.72,1.15,t);elbowAngle=lerp(-1.12,1.4,t);}
+ else if(pickupTime<1.45){shoulderAngle=1.15;elbowAngle=1.4;
+   if(!carrying){carrying=true;head.attach(wrist);head.position.copy(headHome);head.rotation.set(0,0,0);jawL.position.x=-.16;jawR.position.x=.16;$('#message').textContent='¡Cabeza sujetada! El brazo la está levantando';}
+ }else if(pickupTime<2.55){const t=smooth((pickupTime-1.45)/1.1);shoulderAngle=lerp(1.15,.72,t);elbowAngle=lerp(1.4,-1.12,t);}
+ else{pickupActive=false;$('#grab').disabled=false;$('#message').textContent='¡Cabeza recogida! Llévala hasta la línea verde';}
+}
+shoulder.rotation.x=shoulderAngle;elbow.rotation.x=elbowAngle;
+if(mode==='build'){robot.position.set(0,0,0);robot.rotation.y=orbit+elapsed*.12;camera.position.lerp(new THREE.Vector3(6,5.1,8),.06);look.set(0,1.35,0);camera.lookAt(look);track.visible=false;ground.visible=false;goal.visible=false;head.visible=false}
+else{track.visible=true;ground.visible=true;goal.visible=true;if(!carrying&&mode==='race')head.visible=true;robot.position.set(car.x,0,car.z);robot.rotation.y=car.a;desired.set(car.x-6*Math.sin(car.a),4.4,car.z-7.6*Math.cos(car.a));camera.position.lerp(desired,Math.min(1,dt*5));look.set(car.x+3*Math.sin(car.a),1.1,car.z+4*Math.cos(car.a));camera.lookAt(look);if(carrying){jawL.position.x=-.16;jawR.position.x=.16}else{jawL.position.x=-.24;jawR.position.x=.24}}
 renderer.render(scene,camera)}
 $('#loading').remove();frame();
 </script></body></html>

@@ -59,7 +59,7 @@ const descriptions=[
 ['Arduino UNO','Placa azul con microcontrolador, conectores de alimentación, USB y pines de entrada y salida.'],
 ['Servomotores y brazo','Servomotores que permiten mover la base, el hombro, el codo y la pinza del manipulador.']
 ];
-let step=0,mode='build',carrying=false,animating=false,keys={},car={x:0,z:0,a:0},orbit=0,last=0,elapsed=0;
+let showcase=null;const showcaseAnchor=new THREE.Group();scene.add(showcaseAnchor);showcaseAnchor.position.set(0,1.55,0);let step=0,mode='build',carrying=false,animating=false,keys={},car={x:0,z:0,a:0},orbit=0,last=0,elapsed=0;
 const ground=box(scene,220,.18,220,mat('#263e3b'),0,-.14,35);
 const track=box(scene,12,.06,72,M.road,0,-.025,27);
 for(let z=-3;z<64;z+=4){box(scene,.13,.025,2,M.stripe,0,.023,z);for(const x of [-6.05,6.05]){box(scene,.12,.025,3.7,M.white,x,.025,z)}}
@@ -82,11 +82,11 @@ const headHome=new THREE.Vector3(0,.47,0);
 let pickupTime=0, pickupActive=false;
 const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
 const lerp=(a,b,t)=>a+(b-a)*t;
-function panel(){if(step===5){mode='race';$('#panel').style.display='none';$('#controls').style.display='flex';$('#phase').textContent='FASE 2 · CARRERA 3D';$('#message').textContent='Recoge la cabeza del robot 🤖 y llévala a la meta';$('#orbitHint').style.display='none';$('#progress').style.display='none';all.forEach(g=>g.visible=true);return}
+function panel(){if(step===5){mode='race';$('#panel').style.display='none';$('#controls').style.display='flex';$('#phase').textContent='FASE 2 · CARRERA 3D';$('#message').textContent='Recoge la cabeza del robot 🤖 y llévala a la meta';$('#orbitHint').style.display='none';$('#progress').style.display='none';all.forEach(g=>g.visible=true);showcaseAnchor.visible=false;return}
 const p=descriptions[step];$('#heading').textContent=p[0];$('#desc').textContent=p[1];$('#counter').textContent='Componente '+(step+1)+' de 5';$('#progress').textContent='Ensamblado: '+step+'/5';$('#checks').innerHTML=descriptions.map((_,i)=>'<div class="check '+(i<step?'done':'')+'"></div>').join('');
-all.forEach((g,i)=>{g.visible=i<=step});}
+all.forEach((g,i)=>{g.visible=i<step});if(showcase){showcaseAnchor.remove(showcase);showcase=null}const original=all[step];showcase=original.clone(true);showcaseAnchor.add(showcase);const bounds=new THREE.Box3().setFromObject(showcase);const center=bounds.getCenter(new THREE.Vector3());const size=bounds.getSize(new THREE.Vector3());showcase.position.sub(center);showcaseAnchor.scale.setScalar(Math.min(1.65,2.8/Math.max(size.x,size.y,size.z)));}
 panel();
-$('#assemble').onclick=()=>{if(animating)return;animating=true;$('#assemble').disabled=true;const target=all[step];target.visible=true;target.scale.setScalar(.05);const begin=performance.now();function grow(t){let k=Math.min(1,(t-begin)/650);target.scale.setScalar(.05+.95*(1-(1-k)**3));if(k<1)requestAnimationFrame(grow);else{target.scale.setScalar(1);step++;animating=false;$('#assemble').disabled=false;panel()}}requestAnimationFrame(grow)};
+$('#assemble').onclick=()=>{if(animating)return;animating=true;$('#assemble').disabled=true;const target=all[step];target.visible=true;target.scale.setScalar(.05);if(showcase){showcaseAnchor.remove(showcase);showcase=null}const begin=performance.now();function grow(t){let k=Math.min(1,(t-begin)/650);target.scale.setScalar(.05+.95*(1-(1-k)**3));if(k<1)requestAnimationFrame(grow);else{target.scale.setScalar(1);step++;animating=false;$('#assemble').disabled=false;panel()}}requestAnimationFrame(grow)};
 $('#restart').onclick=()=>location.reload();
 document.querySelectorAll('[data-key]').forEach(b=>{const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys[k]=true;b.classList.add('pressed')});for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>{keys[k]=false;b.classList.remove('pressed')});b.addEventListener('contextmenu',e=>e.preventDefault())});
 addEventListener('keydown',e=>{const k={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'}[e.key];if(k){e.preventDefault();keys[k]=true}if(e.code==='Space'){e.preventDefault();grab()}});
@@ -100,17 +100,17 @@ const clock=new THREE.Clock();const look=new THREE.Vector3(),desired=new THREE.V
 function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.045);elapsed+=dt;
 if(mode==='race'&&!pickupActive){if(keys.left)car.a+=1.7*dt;if(keys.right)car.a-=1.7*dt;const v=((keys.up?1:0)-(keys.down?1:0))*5.3*dt;const nx=car.x+Math.sin(car.a)*v,nz=car.z+Math.cos(car.a)*v;if(Math.abs(nx)<5.2&&nz>-2&&nz<34){car.x=nx;car.z=nz}if(v!==0)for(const w of wheels)w.rotation.x+=v/.46;}
 // Posición normal: brazo flexionado hacia el frente del vehículo.
-let shoulderAngle=.72, elbowAngle=-1.12;
+let shoulderAngle=.8, elbowAngle=.7;
 if(pickupActive){
  pickupTime+=dt;
- if(pickupTime<1.1){const t=smooth(pickupTime/1.1);shoulderAngle=lerp(.72,1.15,t);elbowAngle=lerp(-1.12,1.4,t);}
- else if(pickupTime<1.45){shoulderAngle=1.15;elbowAngle=1.4;
+ if(pickupTime<1.1){const t=smooth(pickupTime/1.1);shoulderAngle=lerp(.8,1.85,t);elbowAngle=lerp(.7,.55,t);}
+ else if(pickupTime<1.45){shoulderAngle=1.85;elbowAngle=.55;
    if(!carrying){carrying=true;head.attach(wrist);head.position.copy(headHome);head.rotation.set(0,0,0);jawL.position.x=-.16;jawR.position.x=.16;$('#message').textContent='¡Cabeza sujetada! El brazo la está levantando';}
- }else if(pickupTime<2.55){const t=smooth((pickupTime-1.45)/1.1);shoulderAngle=lerp(1.15,.72,t);elbowAngle=lerp(1.4,-1.12,t);}
+ }else if(pickupTime<2.55){const t=smooth((pickupTime-1.45)/1.1);shoulderAngle=lerp(1.85,.8,t);elbowAngle=lerp(.55,.7,t);}
  else{pickupActive=false;$('#grab').disabled=false;$('#message').textContent='¡Cabeza recogida! Llévala hasta la línea verde';}
 }
 shoulder.rotation.x=shoulderAngle;elbow.rotation.x=elbowAngle;
-if(mode==='build'){robot.position.set(0,0,0);robot.rotation.y=orbit+elapsed*.12;camera.position.lerp(new THREE.Vector3(6,5.1,8),.06);look.set(0,1.35,0);camera.lookAt(look);track.visible=false;ground.visible=false;goal.visible=false;head.visible=false}
+if(mode==='build'){robot.position.set(-4.3,0,0);robot.rotation.y=orbit+elapsed*.12;showcaseAnchor.rotation.y=orbit+elapsed*.28;camera.position.lerp(new THREE.Vector3(5,3.5,8),.06);look.set(-.5,1.55,0);camera.lookAt(look);track.visible=false;ground.visible=false;goal.visible=false;head.visible=false}
 else{track.visible=true;ground.visible=true;goal.visible=true;if(!carrying&&mode==='race')head.visible=true;robot.position.set(car.x,0,car.z);robot.rotation.y=car.a;desired.set(car.x-6*Math.sin(car.a),4.4,car.z-7.6*Math.cos(car.a));camera.position.lerp(desired,Math.min(1,dt*5));look.set(car.x+3*Math.sin(car.a),1.1,car.z+4*Math.cos(car.a));camera.lookAt(look);if(carrying){jawL.position.x=-.16;jawR.position.x=.16}else{jawL.position.x=-.24;jawR.position.x=.24}}
 renderer.render(scene,camera)}
 $('#loading').remove();frame();
